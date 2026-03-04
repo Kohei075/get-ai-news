@@ -1,29 +1,40 @@
 ---
 name: get-ai-news
-description: AI関連ニュース（特に新モデルリリース）をWebSearchで取得し、news/ディレクトリに保存する
-allowed-tools: WebSearch, Write, Read, Glob
+description: 今日話題のAI関連ニュースをWebSearchで取得し、news/ディレクトリに保存してSlackに通知する
+allowed-tools: WebSearch, Write, Read, Glob, Bash
 user-invocable: true
 disable-model-invocation: true
 ---
 
 # AI ニュース取得スキル
 
-X(Twitter)やWeb上で話題のAI関連ニュース（特に新しいAIモデルリリース）を検索・取得し、Markdownファイルとして保存する。
+今日（実行日）話題になっているAI関連ニュースをWebSearchで取得し、Markdownファイルとして保存し、Slackに通知する。
+
+## 重要なルール
+- **その日のニュースのみを取得する**。過去のモデルリリース情報やまとめ記事は除外すること。
+- 検索クエリには必ず「today」や具体的な日付を含め、当日の話題に絞る。
+- 検索結果に過去の情報（実行日より前のリリースやイベント）が含まれる場合はスキップする。
+- **必ず10件のニュースを取得する**。10件に満たない場合は追加の検索クエリを実行して補う。
 
 ## 手順
 
 1. 今日の日付を確認する（YYYY-MM-DD形式）
 
-2. WebSearchで以下のクエリを並列実行して、最新のAIニュースを取得する:
-   - `"AI model release" OR "new AI model" site:x.com` — Xで話題のAIモデル情報
-   - `AI model launch OR release 2026` — 一般的なAIモデルニュース
-   - `AI 新モデル リリース 2026` — 日本語のAIニュース
+2. WebSearchで以下のクエリを並列実行して、今日のAIニュースを取得する:
+   - `AI news today YYYY-MM-DD` — 今日の英語AIニュース全般
+   - `AI latest news today site:x.com` — Xで今日話題のAI情報
+   - `AI ニュース 今日 YYYY年M月D日` — 今日の日本語AIニュース
+   - `AI startup funding acquisition YYYY-MM-DD` — AI企業の資金調達・買収ニュース
+   - `generative AI LLM release update YYYY-MM-DD` — 生成AI・LLMの最新アップデート
+   （YYYY-MM-DDは実行日の日付に置き換える）
 
-3. 検索結果を分析し、以下の情報を抽出する:
+3. 検索結果を分析し、**今日（実行日）の話題のみ**を10件抽出する:
    - ニュースのタイトル
    - 概要（2-3文）
    - ソースURL
    - 関連する企業/組織名
+   - 過去のリリース情報やまとめ記事は含めない
+   - 10件に満たない場合は、追加で `AI regulation policy YYYY-MM-DD` や `AI robotics hardware YYYY-MM-DD` などのクエリで補完する
 
 4. 既存のニュースファイルを確認する:
    - `news/` ディレクトリ内のファイルをGlobで確認
@@ -41,16 +52,39 @@ X(Twitter)やWeb上で話題のAI関連ニュース（特に新しいAIモデル
 
 ## 2. [ニュースタイトル]
 ...
+（計10件）
 
 ---
 *取得日時: YYYY-MM-DD*
 *検索クエリ: 使用したクエリ一覧*
 ```
 
-6. 保存完了後、取得したニュースの概要をユーザーに報告する。
+6. 保存完了後、Slackに通知を送信する:
+   - 保存したニュースから各タイトルと概要を1行ずつまとめたテキストを作成する
+   - 以下の形式でメッセージを組み立てる（Slackのmrkdwn記法でURLをリンクにする）:
+     ```
+     📰 AIニュース - YYYY-MM-DD
+
+     1. *ニュースタイトル1*
+        概要テキスト
+        <URL1|ソース名1>
+     2. *ニュースタイトル2*
+        概要テキスト
+        <URL2|ソース名2>
+     ...
+     ```
+   - `scripts/send_slack.py` を使ってSlackに送信する:
+     ```bash
+     python scripts/send_slack.py "上記で組み立てたメッセージテキスト"
+     ```
+   - 送信成功を確認してユーザーに報告する
+
+7. 取得したニュースの概要をユーザーに報告する。
 
 ## 注意事項
 - 検索結果にはソースURLを必ず含める（WebSearchの要件）
 - 重複するニュースは統合する
 - 信頼性の低い情報源からの情報には注記を付ける
 - 日本語と英語の両方のソースを含める
+- **実行日より前に発表・リリースされたモデルやサービスの情報は含めない**。あくまで「今日何が話題か」に焦点を当てる
+- Slack送信に失敗した場合はエラー内容をユーザーに報告し、ファイル保存は正常に行う
