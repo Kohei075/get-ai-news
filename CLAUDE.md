@@ -12,8 +12,9 @@ get-ai-news/
 │   └── secrets.env              # Slack認証情報（git管理外）
 ├── logs/
 │   └── scheduler.log            # 自動実行ログ（git管理外）
-├── news/                        # 取得したニュースファイル
-│   └── YYYY-MM-DD-ai-news.md
+├── news/                        # 取得したニュースファイル（月別フォルダ）
+│   └── YYYY-MM/
+│       └── YYYY-MM-DD-ai-news.md
 ├── scripts/
 │   ├── run_get_ai_news.bat      # タスクスケジューラ用バッチ
 │   ├── send_slack.py            # Slack送信スクリプト
